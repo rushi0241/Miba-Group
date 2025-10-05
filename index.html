@@ -3,249 +3,501 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MIBA Production Planning Dashboard</title>
-    <link href="main.css" rel="stylesheet" />
+    <title>mSolutions | Shopfloor Execution (mCockpit)</title>
+
+    <!-- AdminLTE3 & deps via CDN (pure HTML/CSS/JS) -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"
+    />
+    <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
-    <nav class="navbar">
-      <div class="navbar-brand">MIBA <span>mSolutions</span></div>
-      <div class="navbar-right">
-        <button
-          class="nav-btn"
-          onclick="showNotifications()"
-          title="Notifications"
-        >
-          🔔 <span class="badge">3</span>
-        </button>
-        <button class="nav-btn" onclick="showUserMenu()" title="User Profile">
-          👤 Admin
-        </button>
-      </div>
-    </nav>
+  <body class="hold-transition sidebar-mini layout-fixed">
+    <div class="wrapper">
+      <!-- Navbar -->
+      <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" data-widget="pushmenu" href="#" role="button"
+              ><i class="fas fa-bars"></i
+            ></a>
+          </li>
+          <li class="nav-item d-none d-sm-inline-block">
+            <a href="#" class="nav-link">Shopfloor Execution</a>
+          </li>
+        </ul>
 
-    <div class="container">
-      <div class="page-header">
-        <h1>Production Planning & Scheduling</h1>
-        <div class="breadcrumb"><a href="#">Home</a> / Production Planning</div>
-      </div>
-
-      <div class="metrics-grid">
-        <div class="metric-card metric-info" onclick="filterByStatus('all')">
-          <h2 id="totalJobs">0</h2>
-          <p>Total Production Jobs</p>
-        </div>
-        <div
-          class="metric-card metric-success"
-          onclick="filterByStatus('Completed')"
-        >
-          <h2 id="completedJobs">0</h2>
-          <p>Completed Jobs</p>
-        </div>
-        <div
-          class="metric-card metric-warning"
-          onclick="filterByStatus('In Progress')"
-        >
-          <h2 id="inProgressJobs">0</h2>
-          <p>In Progress</p>
-        </div>
-        <div
-          class="metric-card metric-danger"
-          onclick="filterByStatus('Delayed')"
-        >
-          <h2 id="delayedJobs">0</h2>
-          <p>Delayed Jobs</p>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">📊 Production Timeline (Gantt Chart)</div>
-        </div>
-        <div class="card-body">
-          <div id="ganttChart" class="gantt-chart"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">📋 Production Jobs Management</div>
-          <div class="toolbar">
-            <div class="search-wrapper">
+        <ul class="navbar-nav ml-auto align-items-center">
+          <li class="nav-item mr-2">
+            <div class="input-group input-group-sm">
               <input
-                type="text"
-                id="searchInput"
-                class="search-box"
-                placeholder="🔍 Search jobs..."
+                id="searchStation"
+                class="form-control"
+                placeholder="Search station..."
               />
-              <button id="clearSearch" class="clear-btn" style="display: none">
-                ❌
-              </button>
+              <div class="input-group-append">
+                <span class="btn btn-default"
+                  ><i class="fas fa-search"></i
+                ></span>
+              </div>
             </div>
-            <button class="btn btn-primary" onclick="openAddModal()">
-              ➕ Add Job
+          </li>
+          <li class="nav-item">
+            <button
+              id="toggleTheme"
+              class="btn btn-sm btn-outline-secondary"
+              title="Toggle Dark Mode"
+            >
+              <i class="fas fa-moon"></i>
+            </button>
+          </li>
+        </ul>
+      </nav>
+      <!-- /.navbar -->
+
+      <!-- Main Sidebar Container -->
+      <aside class="main-sidebar sidebar-dark-primary elevation-4">
+        <a href="#" class="brand-link">
+          <i class="fas fa-industry brand-image img-circle elevation-3"></i>
+          <span class="brand-text font-weight-light">mSolutions</span>
+        </a>
+
+        <div class="sidebar">
+          <nav class="mt-2">
+            <ul
+              class="nav nav-pills nav-sidebar flex-column"
+              data-widget="treeview"
+              role="menu"
+            >
+              <li class="nav-item has-treeview menu-open">
+                <a href="#" class="nav-link active">
+                  <i class="nav-icon fas fa-cogs"></i>
+                  <p>
+                    Shopfloor Execution
+                    <i class="right fas fa-angle-left"></i>
+                  </p>
+                </a>
+                <ul class="nav nav-treeview">
+                  <li class="nav-item">
+                    <a href="#" class="nav-link active" id="menu-line"
+                      ><i class="far fa-circle nav-icon"></i>
+                      <p>Production Line</p></a
+                    >
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </aside>
+
+      <!-- Content Wrapper. Contains page content -->
+      <div class="content-wrapper">
+        <!-- Content Header (Page header) -->
+        <div class="content-header">
+          <div class="container-fluid">
+            <div class="row mb-2">
+              <div class="col-sm-6">
+                <h1 class="m-0">mCockpit: Operator Dashboard</h1>
+              </div>
+              <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                  <li class="breadcrumb-item"><a href="#">Home</a></li>
+                  <li class="breadcrumb-item active">Shopfloor Execution</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main content -->
+        <section class="content">
+          <div class="container-fluid">
+            <!-- KPI Row -->
+            <div class="row" id="kpiRow">
+              <div class="col-lg-3 col-6">
+                <div class="small-box bg-info">
+                  <div class="inner">
+                    <h3 id="kpiThroughput">0</h3>
+                    <p>Hourly Throughput</p>
+                  </div>
+                  <div class="icon"><i class="fas fa-tachometer-alt"></i></div>
+                  <a href="#" class="small-box-footer"
+                    >Details <i class="fas fa-arrow-circle-right"></i
+                  ></a>
+                </div>
+              </div>
+              <div class="col-lg-3 col-6">
+                <div class="small-box bg-success">
+                  <div class="inner">
+                    <h3 id="kpiOee">0<sup style="font-size: 20px">%</sup></h3>
+                    <p>OEE</p>
+                  </div>
+                  <div class="icon"><i class="fas fa-percentage"></i></div>
+                  <a href="#" class="small-box-footer"
+                    >Details <i class="fas fa-arrow-circle-right"></i
+                  ></a>
+                </div>
+              </div>
+              <div class="col-lg-3 col-6">
+                <div class="small-box bg-warning">
+                  <div class="inner">
+                    <h3 id="kpiWip">0</h3>
+                    <p>WIP Items</p>
+                  </div>
+                  <div class="icon"><i class="fas fa-boxes"></i></div>
+                  <a href="#" class="small-box-footer"
+                    >Details <i class="fas fa-arrow-circle-right"></i
+                  ></a>
+                </div>
+              </div>
+              <div class="col-lg-3 col-6">
+                <div class="small-box bg-danger">
+                  <div class="inner">
+                    <h3 id="kpiAlerts">0</h3>
+                    <p>Active Alerts</p>
+                  </div>
+                  <div class="icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                  </div>
+                  <a href="#" class="small-box-footer"
+                    >Details <i class="fas fa-arrow-circle-right"></i
+                  ></a>
+                </div>
+              </div>
+            </div>
+
+            <div class="row row-stretch">
+              <!-- Production Line Visualization -->
+              <section class="col-lg-8 d-flex connectedSortable">
+                <div class="card">
+                  <div class="card-header">
+                    <h3 class="card-title">
+                      <i class="fas fa-stream mr-1"></i> Production Line
+                    </h3>
+                    <div class="card-tools">
+                      <div class="btn-group btn-group-sm">
+                        <button id="btnPlay" class="btn btn-primary">
+                          <i class="fas fa-play"></i>
+                        </button>
+                        <button id="btnPause" class="btn btn-secondary">
+                          <i class="fas fa-pause"></i>
+                        </button>
+                        <button id="btnReset" class="btn btn-outline-secondary">
+                          <i class="fas fa-undo"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div
+                      class="d-flex align-items-center justify-content-between mb-2"
+                    >
+                      <div>
+                        <span class="badge badge-success mr-1">Running</span>
+                        <span class="badge badge-warning mr-1">Starved</span>
+                        <span class="badge badge-danger">Down</span>
+                      </div>
+                      <div class="d-flex align-items-center" style="gap: 8px">
+                        <label class="mb-0">Speed</label>
+                        <input
+                          id="speedRange"
+                          type="range"
+                          min="0.25"
+                          max="2"
+                          step="0.25"
+                          value="1"
+                        />
+                        <span id="speedLabel" class="text-muted">1x</span>
+                      </div>
+                    </div>
+
+                    <!-- SVG Line -->
+                    <div id="lineContainer" class="production-line">
+                      <svg
+                        id="lineSvg"
+                        viewBox="0 0 900 220"
+                        preserveAspectRatio="xMidYMid meet"
+                      >
+                        <!-- Conveyor path -->
+                        <path
+                          id="conveyor"
+                          d="M40 180 H860"
+                          class="conveyor"
+                        ></path>
+                        <!-- Stations -->
+                        <g id="stations"></g>
+                        <!-- Moving items group -->
+                        <g id="items"></g>
+                      </svg>
+                    </div>
+
+                    <!-- Cool Feature: Timeline Replay Scrubber -->
+                    <div class="timeline-controls mt-3">
+                      <input
+                        id="timeline"
+                        type="range"
+                        min="0"
+                        max="100"
+                        value="0"
+                        class="w-100"
+                      />
+                      <div
+                        class="d-flex justify-content-between small text-muted mt-1"
+                      >
+                        <span id="tlStart">08:00</span>
+                        <span id="tlNow">Live</span>
+                        <span id="tlEnd">16:00</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Right column: Filters + Station Details stacked -->
+              <section class="col-lg-4 d-flex flex-column connectedSortable">
+                <div class="card">
+                  <div class="card-header">
+                    <h3 class="card-title">
+                      <i class="fas fa-filter mr-1"></i> Filters
+                    </h3>
+                  </div>
+                  <div class="card-body">
+                    <div class="form-group">
+                      <label>Show status</label>
+                      <div
+                        class="btn-group btn-group-toggle d-flex"
+                        data-toggle="buttons"
+                      >
+                        <label class="btn btn-outline-success active flex-fill">
+                          <input type="checkbox" checked id="filterRunning" />
+                          Running
+                        </label>
+                        <label class="btn btn-outline-warning active flex-fill">
+                          <input type="checkbox" checked id="filterStarved" />
+                          Starved
+                        </label>
+                        <label class="btn btn-outline-danger active flex-fill">
+                          <input type="checkbox" checked id="filterDown" /> Down
+                        </label>
+                      </div>
+                    </div>
+                    <div class="form-group mb-0">
+                      <label>Focus station</label>
+                      <select id="stationSelect" class="custom-select"></select>
+                    </div>
+                  </div>
+                </div>
+                <div class="card mt-3" id="stationCard">
+                  <div class="card-header">
+                    <h3 class="card-title">
+                      <i class="fas fa-robot mr-1"></i> Station Details
+                    </h3>
+                  </div>
+                  <div class="card-body" id="stationDetails">
+                    <p class="text-muted mb-0">
+                      Select a station to view details.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <!-- Work Orders Management -->
+            <div class="row mt-3">
+              <section class="col-12">
+                <div class="card">
+                  <div class="card-header d-flex align-items-center">
+                    <h3 class="card-title mr-3">
+                      <i class="fas fa-tasks mr-1"></i> Work Orders
+                    </h3>
+                    <select
+                      id="woStatusFilter"
+                      class="custom-select custom-select-sm"
+                      style="width: auto"
+                    >
+                      <option value="">All Statuses</option>
+                      <option>Planned</option>
+                      <option>In Progress</option>
+                      <option>Quality Check</option>
+                      <option>Completed</option>
+                      <option>Cancelled</option>
+                    </select>
+                    <div class="card-tools d-flex ml-auto" style="gap: 8px">
+                      <input
+                        id="woSearch"
+                        class="form-control form-control-sm"
+                        placeholder="Search orders..."
+                        style="width: 220px"
+                      />
+                      <button id="btnAddOrder" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus mr-1"></i>Add Order
+                      </button>
+                    </div>
+                  </div>
+                  <div class="card-body p-0">
+                    <div class="table-responsive">
+                      <table
+                        class="table table-striped table-hover table-bordered mb-0"
+                        id="woTable"
+                      >
+                        <thead class="thead-light">
+                          <tr>
+                            <th style="width: 100px">Order ID</th>
+                            <th style="width: 200px">Product</th>
+                            <th style="width: 100px">Qty</th>
+                            <th style="width: 120px">Due</th>
+                            <th style="width: auto">Priority</th>
+                            <th style="width: auto">Status</th>
+                            <th style="width: 180px">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody id="woTbody"></tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="main-footer">
+        <strong>mSolutions demo</strong> built with AdminLTE3.
+        <div class="float-right d-none d-sm-inline-block">
+          <b>Version</b> 1.0
+        </div>
+      </footer>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal fade" id="stationModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="stationModalTitle">Station</h5>
+            <button
+              type="button"
+              class="close"
+              data-dismiss="modal"
+              aria-label="Close"
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body" id="stationModalBody"></div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-dismiss="modal"
+            >
+              Close
             </button>
           </div>
         </div>
-        <div class="card-body" style="padding: 0; overflow-x: auto">
-          <table>
-            <thead>
-              <tr>
-                <th>Job ID</th>
-                <th>Product</th>
-                <th>Machine</th>
-                <th>Quantity</th>
-                <th>Priority</th>
-                <th>Start Date</th>
-                <th>End Date</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="jobsTableBody"></tbody>
-          </table>
+      </div>
+    </div>
+
+    <!-- Work Order Modal -->
+    <div class="modal fade" id="woModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="woModalTitle">Add Work Order</h5>
+            <button
+              type="button"
+              class="close"
+              data-dismiss="modal"
+              aria-label="Close"
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form id="woForm">
+              <input type="hidden" id="woId" />
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label>Product</label>
+                  <input
+                    id="woProduct"
+                    class="form-control"
+                    placeholder="e.g., Gearbox"
+                    required
+                  />
+                </div>
+                <div class="form-group col-md-3">
+                  <label>Quantity</label>
+                  <input
+                    id="woQty"
+                    type="number"
+                    min="1"
+                    class="form-control"
+                    value="1"
+                    required
+                  />
+                </div>
+                <div class="form-group col-md-3">
+                  <label>Priority</label>
+                  <select id="woPriority" class="custom-select">
+                    <option>Low</option>
+                    <option selected>Normal</option>
+                    <option>High</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label>Due Date</label>
+                  <input id="woDue" type="date" class="form-control" required />
+                </div>
+                <div class="form-group col-md-6">
+                  <label>Status</label>
+                  <select id="woStatus" class="custom-select">
+                    <option selected>Planned</option>
+                    <option>In Progress</option>
+                    <option>Quality Check</option>
+                    <option>Completed</option>
+                    <option>Cancelled</option>
+                  </select>
+                </div>
+              </div>
+            </form>
+            <div id="woError" class="text-danger small d-none"></div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-dismiss="modal"
+            >
+              Close
+            </button>
+            <button id="woSave" type="button" class="btn btn-primary">
+              Save
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Notification Dropdown -->
+    <!-- Toasts -->
     <div
-      id="notificationMenu"
-      class="dropdown-menu"
-      style="position: fixed; top: 60px; right: 120px"
-    >
-      <div class="dropdown-item">
-        <span>🔔</span>
-        <span>New production job assigned</span>
-        <span class="notification-badge">1</span>
-      </div>
-      <div class="dropdown-item">
-        <span>⚠️</span>
-        <span>Machine maintenance required</span>
-        <span class="notification-badge">1</span>
-      </div>
-      <div class="dropdown-item">
-        <span>✅</span>
-        <span>Job #3 completed successfully</span>
-        <span class="notification-badge">1</span>
-      </div>
-      <div
-        class="dropdown-item"
-        style="background: #f8f9fa; font-weight: 600; justify-content: center"
-      >
-        View All Notifications
-      </div>
-    </div>
+      id="toastContainer"
+      aria-live="polite"
+      aria-atomic="true"
+      style="position: fixed; right: 12px; bottom: 12px; z-index: 1080"
+    ></div>
 
-    <!-- User Menu Dropdown -->
-    <div
-      id="userMenu"
-      class="dropdown-menu"
-      style="position: fixed; top: 60px; right: 20px"
-    >
-      <div class="dropdown-item">
-        <span>👤</span>
-        <span>My Profile</span>
-      </div>
-      <div class="dropdown-item">
-        <span>⚙️</span>
-        <span>Settings</span>
-      </div>
-      <div class="dropdown-item">
-        <span>📊</span>
-        <span>Activity Log</span>
-      </div>
-      <div
-        class="dropdown-item"
-        onclick="logout()"
-        style="color: #dc3545; font-weight: 600"
-      >
-        <span>🚪</span>
-        <span>Logout</span>
-      </div>
-    </div>
-
-    <div class="modal" id="jobModal">
-      <div class="modal-dialog">
-        <div class="modal-header">
-          <h4 class="modal-title" id="modalTitle">Add Production Job</h4>
-          <button class="close" onclick="closeModal()">×</button>
-        </div>
-        <div class="modal-body">
-          <form id="jobForm">
-            <input type="hidden" id="jobId" />
-            <div class="form-group">
-              <label>Product Name *</label>
-              <input
-                type="text"
-                class="form-control"
-                id="productName"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label>Machine *</label>
-              <select class="form-control" id="machine" required>
-                <option value="">Select Machine</option>
-                <option>CNC Mill 01</option>
-                <option>CNC Mill 02</option>
-                <option>Lathe 01</option>
-                <option>Assembly Line A</option>
-                <option>Assembly Line B</option>
-                <option>Press Machine 01</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Quantity *</label>
-              <input
-                type="number"
-                class="form-control"
-                id="quantity"
-                min="1"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label>Priority *</label>
-              <select class="form-control" id="priority" required>
-                <option value="High">High</option>
-                <option value="Medium" selected>Medium</option>
-                <option value="Low">Low</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Start Date *</label>
-              <input type="date" class="form-control" id="startDate" required />
-            </div>
-            <div class="form-group">
-              <label>End Date *</label>
-              <input type="date" class="form-control" id="endDate" required />
-            </div>
-            <div class="form-group">
-              <label>Status *</label>
-              <select class="form-control" id="status" required>
-                <option value="Scheduled">Scheduled</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-                <option value="Delayed">Delayed</option>
-              </select>
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary" onclick="saveJob()">
-            💾 Save Job
-          </button>
-          <button
-            class="btn"
-            style="background: #6c757d; color: white"
-            onclick="closeModal()"
-          >
-            ❌ Close
-          </button>
-        </div>
-      </div>
-    </div>
-
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
     <script src="main.js"></script>
   </body>
 </html>

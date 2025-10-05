@@ -1,390 +1,580 @@
-const Store = {
-  jobs: [],
-  nextId: 1,
-
-  init() {
-    this.jobs = [
-      {
-        id: 1,
-        product: "Engine Component A",
-        machine: "CNC Mill 01",
-        quantity: 500,
-        priority: "High",
-        startDate: "2025-10-01",
-        endDate: "2025-10-05",
-        status: "In Progress",
-      },
-      {
-        id: 2,
-        product: "Bearing Unit B",
-        machine: "Lathe 01",
-        quantity: 300,
-        priority: "Medium",
-        startDate: "2025-10-02",
-        endDate: "2025-10-06",
-        status: "Scheduled",
-      },
-      {
-        id: 3,
-        product: "Power Module C",
-        machine: "Assembly Line A",
-        quantity: 200,
-        priority: "High",
-        startDate: "2025-09-28",
-        endDate: "2025-10-01",
-        status: "Completed",
-      },
-      {
-        id: 4,
-        product: "Friction Disc D",
-        machine: "CNC Mill 02",
-        quantity: 450,
-        priority: "Low",
-        startDate: "2025-09-25",
-        endDate: "2025-09-30",
-        status: "Delayed",
-      },
-      {
-        id: 5,
-        product: "Transmission Part E",
-        machine: "Assembly Line B",
-        quantity: 350,
-        priority: "Medium",
-        startDate: "2025-10-03",
-        endDate: "2025-10-08",
-        status: "Scheduled",
-      },
-      {
-        id: 6,
-        product: "Valve Assembly F",
-        machine: "Press Machine 01",
-        quantity: 600,
-        priority: "High",
-        startDate: "2025-10-04",
-        endDate: "2025-10-09",
-        status: "In Progress",
-      },
-    ];
-    this.nextId = 7;
+// Simple data model for stations and simulated events
+const stationsData = [
+  {
+    id: "S1",
+    name: "Loader",
+    x: 120,
+    status: "running",
+    oee: 92,
+    uptime: "99.2%",
+    notes: "Automated loader",
   },
-
-  getAll() {
-    return [...this.jobs];
+  {
+    id: "S2",
+    name: "Robot Arm A",
+    x: 260,
+    status: "running",
+    oee: 88,
+    uptime: "97.5%",
+    notes: "Pick & place",
   },
-  getById(id) {
-    return this.jobs.find((j) => j.id === id);
+  {
+    id: "S3",
+    name: "Inspection",
+    x: 400,
+    status: "starved",
+    oee: 75,
+    uptime: "95.1%",
+    notes: "Vision system",
   },
-
-  add(job) {
-    job.id = this.nextId++;
-    this.jobs.push(job);
-    return job;
+  {
+    id: "S4",
+    name: "Robot Arm B",
+    x: 540,
+    status: "running",
+    oee: 86,
+    uptime: "96.0%",
+    notes: "Assembly",
   },
-
-  update(id, updatedJob) {
-    const idx = this.jobs.findIndex((j) => j.id === id);
-    if (idx !== -1) {
-      this.jobs[idx] = { ...this.jobs[idx], ...updatedJob };
-      return this.jobs[idx];
-    }
-    return null;
+  {
+    id: "S5",
+    name: "Packer",
+    x: 700,
+    status: "down",
+    oee: 0,
+    uptime: "88.2%",
+    notes: "Maintenance",
   },
+];
 
-  delete(id) {
-    const idx = this.jobs.findIndex((j) => j.id === id);
-    if (idx !== -1) {
-      this.jobs.splice(idx, 1);
-      return true;
-    }
-    return false;
-  },
+let items = []; // moving WIP items
+let playing = true;
+let speed = 1;
+let timePct = 0; // 0..100 replay timeline
+const lineWidth = 820; // px within SVG path for items
 
-  search(term) {
-    const lower = term.toLowerCase();
-    return this.jobs.filter(
-      (j) =>
-        j.product.toLowerCase().includes(lower) ||
-        j.machine.toLowerCase().includes(lower) ||
-        j.status.toLowerCase().includes(lower) ||
-        j.priority.toLowerCase().includes(lower)
+function $(sel) {
+  return document.querySelector(sel);
+}
+function $all(sel) {
+  return Array.from(document.querySelectorAll(sel));
+}
+
+function init() {
+  // Populate stations SVG
+  const g = document.getElementById("stations");
+  stationsData.forEach((s, idx) => {
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.setAttribute("class", "station");
+    group.dataset.id = s.id;
+
+    const baseY = 120;
+    const body = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    body.setAttribute("x", s.x);
+    body.setAttribute("y", baseY - 40);
+    body.setAttribute("rx", 6);
+    body.setAttribute("width", 90);
+    body.setAttribute("height", 60);
+    body.setAttribute("fill", stationColor(s.status));
+    group.appendChild(body);
+
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", s.x + 6);
+    text.setAttribute("y", baseY + 35);
+    text.setAttribute("class", "label");
+    text.textContent = s.name;
+    group.appendChild(text);
+
+    group.addEventListener("click", () => openStation(s));
+    g.appendChild(group);
+  });
+
+  // Select options
+  const select = document.getElementById("stationSelect");
+  select.innerHTML = stationsData
+    .map((s) => `<option value="${s.id}">${s.id} - ${s.name}</option>`)
+    .join("");
+  select.addEventListener("change", (e) => {
+    const s = stationsData.find((x) => x.id === e.target.value);
+    if (s) openStation(s);
+  });
+
+  // Search
+  document.getElementById("searchStation").addEventListener("input", (e) => {
+    const q = e.target.value.toLowerCase();
+    $all("#stations .station").forEach((node) => {
+      const s = stationsData.find((x) => x.id === node.dataset.id);
+      node.style.opacity =
+        !q || s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)
+          ? 1
+          : 0.15;
+    });
+  });
+
+  // Timeline & controls
+  document
+    .getElementById("btnPlay")
+    .addEventListener("click", () => (playing = true));
+  document
+    .getElementById("btnPause")
+    .addEventListener("click", () => (playing = false));
+  document.getElementById("btnReset").addEventListener("click", () => {
+    timePct = 0;
+    $("#timeline").value = 0;
+  });
+  document.getElementById("speedRange").addEventListener("input", (e) => {
+    speed = parseFloat(e.target.value);
+    document.getElementById("speedLabel").textContent = `${speed}x`;
+  });
+  document.getElementById("timeline").addEventListener("input", (e) => {
+    timePct = parseInt(e.target.value, 10);
+    playing = false;
+  });
+
+  // Filters
+  ["Running", "Starved", "Down"].forEach((name) => {
+    document
+      .getElementById("filter" + name)
+      .addEventListener("change", updateFilters);
+  });
+
+  // Theme toggle
+  document
+    .getElementById("toggleTheme")
+    .addEventListener("click", () =>
+      document.body.classList.toggle("dark-mode")
     );
-  },
-};
 
-let editingJobId = null;
-let searchTimeout = null;
-let currentFilter = "all";
+  // Seed items
+  for (let i = 0; i < 8; i++) items.push({ pos: (i * 0.12) % 1, state: "ok" });
 
-function showNotifications() {
-  const menu = document.getElementById("notificationMenu");
-  const userMenu = document.getElementById("userMenu");
-  userMenu.classList.remove("show");
-  menu.classList.toggle("show");
-}
-
-function showUserMenu() {
-  const menu = document.getElementById("userMenu");
-  const notifMenu = document.getElementById("notificationMenu");
-  notifMenu.classList.remove("show");
-  menu.classList.toggle("show");
-}
-
-function logout() {
-  if (confirm("Are you sure you want to logout?")) {
-    showNotification("👋 Logging out...", "info");
-    setTimeout(() => {
-      alert(
-        "Logged out successfully! This is a demo - in production, you would be redirected to login page."
-      );
-      window.location.reload();
-    }, 1000);
-  }
-}
-
-function filterByStatus(status) {
-  currentFilter = status;
-  const allJobs = Store.getAll();
-  if (status === "all") {
-    renderJobsTable(allJobs);
-    showNotification(`📊 Showing all ${allJobs.length} jobs`, "info");
-  } else {
-    const filtered = allJobs.filter((j) => j.status === status);
-    renderJobsTable(filtered);
-    showNotification(`🔍 Filtered: ${filtered.length} ${status} jobs`, "info");
-  }
-}
-
-// Close dropdowns when clicking outside
-document.addEventListener("click", function (e) {
-  if (!e.target.closest(".nav-btn") && !e.target.closest(".dropdown-menu")) {
-    document.getElementById("notificationMenu").classList.remove("show");
-    document.getElementById("userMenu").classList.remove("show");
-  }
-});
-
-function updateDashboard() {
-  const jobs = Store.getAll();
-  document.getElementById("totalJobs").textContent = jobs.length;
-  document.getElementById("completedJobs").textContent = jobs.filter(
-    (j) => j.status === "Completed"
-  ).length;
-  document.getElementById("inProgressJobs").textContent = jobs.filter(
-    (j) => j.status === "In Progress"
-  ).length;
-  document.getElementById("delayedJobs").textContent = jobs.filter(
-    (j) => j.status === "Delayed"
-  ).length;
-}
-
-function renderJobsTable(jobs = null) {
-  const jobsToRender = jobs || Store.getAll();
-  const tbody = document.getElementById("jobsTableBody");
-
-  if (jobsToRender.length === 0) {
-    tbody.innerHTML =
-      '<tr><td colspan="9" class="empty-state"><div class="empty-state-icon">📦</div><div>No jobs found</div></td></tr>';
-    return;
+  // Default: load first station details
+  if (stationsData.length) {
+    openStation(stationsData[0]);
+    select.value = stationsData[0].id;
   }
 
-  tbody.innerHTML = jobsToRender
+  updateKPIs();
+  requestAnimationFrame(tick);
+}
+
+function stationColor(status) {
+  if (status === "running") return "#2ecc71";
+  if (status === "starved") return "#f1c40f";
+  return "#e74c3c";
+}
+
+function updateFilters() {
+  const show = {
+    running: document.getElementById("filterRunning").checked,
+    starved: document.getElementById("filterStarved").checked,
+    down: document.getElementById("filterDown").checked,
+  };
+  $all("#stations .station").forEach((node) => {
+    const s = stationsData.find((x) => x.id === node.dataset.id);
+    node.style.display = show[s.status] ? "" : "none";
+  });
+}
+
+function updateKPIs() {
+  const running = stationsData.filter((s) => s.status === "running").length;
+  const alerts = stationsData.filter((s) => s.status === "down").length;
+  const throughput = Math.round(120 + Math.random() * 30 * running);
+  const oee = Math.round(
+    (running / stationsData.length) * 100 - Math.random() * 5
+  );
+  const wip = items.length;
+  document.getElementById("kpiThroughput").textContent = throughput;
+  document.getElementById("kpiOee").innerHTML = `${Math.max(
+    0,
+    oee
+  )}<sup style="font-size:20px">%</sup>`;
+  document.getElementById("kpiWip").textContent = wip;
+  document.getElementById("kpiAlerts").textContent = alerts;
+}
+
+function renderItems(dt) {
+  const itemsGroup = document.getElementById("items");
+  itemsGroup.innerHTML = "";
+  // Move items when playing
+  if (playing) {
+    timePct = Math.min(100, timePct + dt * 0.6 * speed);
+    document.getElementById("timeline").value = Math.floor(timePct);
+  }
+  items.forEach((it) => {
+    if (playing) it.pos = (it.pos + dt * 0.0006 * speed) % 1;
+    const cx = 40 + it.pos * lineWidth;
+    const cy = 180;
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("cx", cx);
+    c.setAttribute("cy", cy);
+    c.setAttribute("r", 8);
+    c.setAttribute(
+      "class",
+      "item" +
+        (it.state === "warn"
+          ? " warning"
+          : it.state === "down"
+          ? " danger"
+          : "")
+    );
+    itemsGroup.appendChild(c);
+  });
+}
+
+function renderStationStates() {
+  // Randomly change states to simulate line
+  if (Math.random() < 0.01) {
+    const s = stationsData[Math.floor(Math.random() * stationsData.length)];
+    const all = ["running", "starved", "down"];
+    s.status = all[Math.floor(Math.random() * all.length)];
+  }
+  // Update colors
+  $all("#stations .station").forEach((node) => {
+    const s = stationsData.find((x) => x.id === node.dataset.id);
+    const rect = node.querySelector("rect");
+    rect.setAttribute("fill", stationColor(s.status));
+  });
+}
+
+function openStation(s) {
+  const el = document.getElementById("stationDetails");
+  el.innerHTML = `
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h4 class="mb-0">${s.name} <small class="text-muted">(${
+    s.id
+  })</small></h4>
+      <span class="badge ${
+        s.status === "running"
+          ? "badge-success"
+          : s.status === "starved"
+          ? "badge-warning"
+          : "badge-danger"
+      } text-uppercase">${s.status}</span>
+    </div>
+    <ul class="list-unstyled mb-2">
+      <li><i class="fas fa-percentage mr-2 text-muted"></i>OEE: <strong>${
+        s.oee
+      }%</strong></li>
+      <li><i class="fas fa-clock mr-2 text-muted"></i>Uptime: <strong>${
+        s.uptime
+      }</strong></li>
+      <li><i class="fas fa-sticky-note mr-2 text-muted"></i>${s.notes}</li>
+    </ul>
+    <button class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#stationModal">View Details</button>
+  `;
+  document.getElementById(
+    "stationModalTitle"
+  ).textContent = `${s.name} (${s.id})`;
+  document.getElementById("stationModalBody").innerHTML = `
+    <p>Status: <strong>${s.status.toUpperCase()}</strong></p>
+    <p>OEE: <strong>${s.oee}%</strong></p>
+    <p>Uptime: <strong>${s.uptime}</strong></p>
+    <p>${s.notes}</p>
+  `;
+}
+
+let last = performance.now();
+function tick(ts) {
+  const dt = ts - last;
+  last = ts;
+  renderItems(dt);
+  renderStationStates();
+  if (Math.random() < 0.02) updateKPIs();
+  requestAnimationFrame(tick);
+}
+
+document.addEventListener("DOMContentLoaded", init);
+
+// -------------------- Work Orders Module (CRUD + Store + Workflow) --------------------
+const Store = (() => {
+  const state = {
+    orders: [
+      {
+        id: "WO-1001",
+        product: "Gearbox",
+        qty: 120,
+        due: dateAdd(2),
+        priority: "High",
+        status: "Planned",
+      },
+      {
+        id: "WO-1002",
+        product: "Chassis",
+        qty: 60,
+        due: dateAdd(5),
+        priority: "Normal",
+        status: "In Progress",
+      },
+      {
+        id: "WO-1003",
+        product: "Motor",
+        qty: 40,
+        due: dateAdd(1),
+        priority: "High",
+        status: "Quality Check",
+      },
+    ],
+    filter: { q: "", status: "" },
+  };
+
+  function nextId() {
+    const max = state.orders.reduce(
+      (m, o) => Math.max(m, parseInt(o.id.split("-")[1])),
+      1000
+    );
+    return `WO-${max + 1}`;
+  }
+
+  function list() {
+    const { q, status } = state.filter;
+    const lc = q.trim().toLowerCase();
+    return state.orders.filter((o) => {
+      const matchQ = !lc || `${o.id} ${o.product}`.toLowerCase().includes(lc);
+      const matchS = !status || o.status === status;
+      return matchQ && matchS;
+    });
+  }
+
+  function add(order) {
+    order.id = nextId();
+    state.orders.unshift(order);
+    return order;
+  }
+
+  function update(id, patch) {
+    const idx = state.orders.findIndex((o) => o.id === id);
+    if (idx === -1) throw new Error("Order not found");
+    state.orders[idx] = { ...state.orders[idx], ...patch };
+    return state.orders[idx];
+  }
+
+  function remove(id) {
+    const idx = state.orders.findIndex((o) => o.id === id);
+    if (idx !== -1) state.orders.splice(idx, 1);
+  }
+
+  function setFilter(partial) {
+    Object.assign(state.filter, partial);
+  }
+  function get() {
+    return state;
+  }
+
+  return { list, add, update, remove, setFilter, get };
+})();
+
+function dateAdd(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// UI Helpers
+function toast(message, type = "success") {
+  const wrap = document.getElementById("toastContainer");
+  const el = document.createElement("div");
+  el.className = `toast-item ${type}`;
+  el.innerHTML = `<i class="fas ${
+    type === "success" ? "fa-check" : "fa-times"
+  }"></i><span>${message}</span><button class="close">&times;</button>`;
+  wrap.appendChild(el);
+  const close = () => {
+    el.remove();
+  };
+  el.querySelector(".close").addEventListener("click", close);
+  setTimeout(close, 3000);
+}
+
+function badge(status) {
+  return `<span class="wo-badge wo-${status.replace(
+    / /g,
+    "\\ "
+  )}">${status}</span>`;
+}
+
+// Render table
+function renderTable() {
+  const tbody = document.getElementById("woTbody");
+  if (!tbody) return;
+  const rows = Store.list()
     .map(
-      (job) => `
-                <tr class="fade-in">
-                    <td><strong>#${job.id}</strong></td>
-                    <td>${job.product}</td>
-                    <td>${job.machine}</td>
-                    <td>${job.quantity}</td>
-                    <td><span class="priority-${job.priority.toLowerCase()}">${
-        job.priority
-      }</span></td>
-                    <td>${job.startDate}</td>
-                    <td>${job.endDate}</td>
-                    <td><span class="status-badge status-${job.status
-                      .toLowerCase()
-                      .replace(" ", "-")}">${job.status}</span></td>
-                    <td>
-                        <button class="btn edit btn-sm" onclick="editJob(${
-                          job.id
-                        })" title="Edit">✏️</button>
-                        <button class="btn delete btn-sm" onclick="deleteJob(${
-                          job.id
-                        })" title="Delete">🗑️</button>
-                    </td>
-                </tr>
-            `
+      (o) => `
+    <tr>
+      <td>${o.id}</td>
+      <td>${o.product}</td>
+      <td>${o.qty}</td>
+      <td>${o.due}</td>
+      <td>${o.priority}</td>
+      <td>${badge(o.status)}</td>
+      <td class="actions">
+        <div class="btn-group btn-group-sm" role="group">
+          <button class="btn btn-outline-secondary" title="Edit" data-edit="${
+            o.id
+          }"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-outline-danger" title="Delete" data-del="${
+            o.id
+          }"><i class="fas fa-trash"></i></button>
+          <div class="btn-group" role="group">
+            <button id="act-${
+              o.id
+            }" type="button" class="btn btn-outline-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" ${
+        o.status === "Completed" || o.status === "Cancelled" ? "disabled" : ""
+      }>
+              Move
+            </button>
+            <div class="dropdown-menu dropdown-menu-right" aria-labelledby="act-${
+              o.id
+            }">
+              ${workflowMenuItems(o)}
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
+  `
     )
     .join("");
+  tbody.innerHTML =
+    rows ||
+    `<tr><td colspan="7" class="text-center text-muted">No orders</td></tr>`;
 }
 
-function renderGanttChart() {
-  const jobs = Store.getAll().filter((j) => j.status !== "Completed");
-  const container = document.getElementById("ganttChart");
+function workflowMenuItems(o) {
+  // Simple workflow: Planned -> In Progress -> Quality Check -> Completed
+  const items = [];
+  if (o.status === "Planned")
+    items.push(
+      `<a class="dropdown-item" href="javascript:;" data-action="start:${o.id}"><i class="fas fa-play mr-2 text-primary"></i>Start</a>`
+    );
+  if (o.status === "In Progress")
+    items.push(
+      `<a class="dropdown-item" href="javascript:;" data-action="qc:${o.id}"><i class="fas fa-clipboard-check mr-2 text-warning"></i>Send to QC</a>`
+    );
+  if (o.status === "Quality Check")
+    items.push(
+      `<a class="dropdown-item" href="javascript:;" data-action="complete:${o.id}"><i class="fas fa-check mr-2 text-success"></i>Complete</a>`
+    );
+  if (o.status !== "Cancelled" && o.status !== "Completed")
+    items.push(
+      `<a class="dropdown-item" href="javascript:;" data-action="cancel:${o.id}"><i class="fas fa-ban mr-2 text-muted"></i>Cancel</a>`
+    );
+  return items.join("");
+}
 
-  if (jobs.length === 0) {
-    container.innerHTML =
-      '<div class="empty-state"><div class="empty-state-icon">📊</div><div>No active jobs to display in timeline</div></div>';
-    return;
-  }
+// Validation
+function validate(form) {
+  const errs = [];
+  const product = form.woProduct.value.trim();
+  const qty = parseInt(form.woQty.value, 10);
+  const due = form.woDue.value;
+  if (!product) errs.push("Product is required");
+  if (!(qty > 0)) errs.push("Quantity must be > 0");
+  if (!due) errs.push("Due date is required");
+  return { ok: errs.length === 0, errs };
+}
 
-  const allDates = jobs.flatMap((j) => [
-    new Date(j.startDate),
-    new Date(j.endDate),
-  ]);
-  const minDate = new Date(Math.min(...allDates));
-  const maxDate = new Date(Math.max(...allDates));
-  const totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)) + 1;
+// Event wiring
+function initWorkOrders() {
+  const statusSel = document.getElementById("woStatusFilter");
+  const search = document.getElementById("woSearch");
+  const addBtn = document.getElementById("btnAddOrder");
+  const tbody = document.getElementById("woTbody");
+  const form = document.getElementById("woForm");
+  const save = document.getElementById("woSave");
+  const errorBox = document.getElementById("woError");
 
-  const statusColors = {
-    Scheduled: "#17a2b8",
-    "In Progress": "#ffc107",
-    Delayed: "#dc3545",
+  if (!statusSel) return; // section not present
+
+  // Debounced search
+  let t;
+  const applySearch = () => {
+    Store.setFilter({ q: search.value });
+    renderTable();
   };
+  search.addEventListener("input", () => {
+    clearTimeout(t);
+    t = setTimeout(applySearch, 200);
+  });
+  statusSel.addEventListener("change", () => {
+    Store.setFilter({ status: statusSel.value });
+    renderTable();
+  });
 
-  container.innerHTML = jobs
-    .map((job) => {
-      const start = new Date(job.startDate);
-      const end = new Date(job.endDate);
-      const daysFromStart = Math.floor(
-        (start - minDate) / (1000 * 60 * 60 * 24)
-      );
-      const duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-      const leftPercent = (daysFromStart / totalDays) * 100;
-      const widthPercent = (duration / totalDays) * 100;
+  addBtn.addEventListener("click", () => {
+    document.getElementById("woModalTitle").textContent = "Add Work Order";
+    form.reset();
+    document.getElementById("woId").value = "";
+    window.jQuery("#woModal").modal("show");
+  });
 
-      return `
-                    <div class="gantt-row">
-                        <div class="gantt-label">${job.product}</div>
-                        <div class="gantt-timeline">
-                            <div class="gantt-bar" style="left: ${leftPercent}%; width: ${widthPercent}%; background: ${
-        statusColors[job.status] || "#6c757d"
-      }">
-                                ${job.machine}
-                            </div>
-                        </div>
-                    </div>
-                `;
-    })
-    .join("");
-}
-
-function openAddModal() {
-  editingJobId = null;
-  document.getElementById("modalTitle").textContent = "Add Production Job";
-  document.getElementById("jobForm").reset();
-  document.getElementById("jobModal").classList.add("show");
-}
-
-function closeModal() {
-  document.getElementById("jobModal").classList.remove("show");
-}
-
-function editJob(id) {
-  const job = Store.getById(id);
-  if (!job) return;
-
-  editingJobId = id;
-  document.getElementById("modalTitle").textContent = "Edit Production Job";
-  document.getElementById("productName").value = job.product;
-  document.getElementById("machine").value = job.machine;
-  document.getElementById("quantity").value = job.quantity;
-  document.getElementById("priority").value = job.priority;
-  document.getElementById("startDate").value = job.startDate;
-  document.getElementById("endDate").value = job.endDate;
-  document.getElementById("status").value = job.status;
-  document.getElementById("jobModal").classList.add("show");
-}
-
-function saveJob() {
-  const form = document.getElementById("jobForm");
-  if (!form.checkValidity()) {
-    form.reportValidity();
-    return;
-  }
-
-  const startDate = new Date(document.getElementById("startDate").value);
-  const endDate = new Date(document.getElementById("endDate").value);
-
-  if (endDate < startDate) {
-    showNotification("⚠️ End date must be after start date!", "error");
-    return;
-  }
-
-  const jobData = {
-    product: document.getElementById("productName").value,
-    machine: document.getElementById("machine").value,
-    quantity: parseInt(document.getElementById("quantity").value),
-    priority: document.getElementById("priority").value,
-    startDate: document.getElementById("startDate").value,
-    endDate: document.getElementById("endDate").value,
-    status: document.getElementById("status").value,
-  };
-
-  if (editingJobId) {
-    Store.update(editingJobId, jobData);
-    showNotification("✅ Job updated successfully!", "success");
-  } else {
-    Store.add(jobData);
-    showNotification("✅ Job added successfully!", "success");
-  }
-
-  closeModal();
-  refreshUI();
-}
-
-function deleteJob(id) {
-  if (confirm("Are you sure you want to delete this job?")) {
-    Store.delete(id);
-    showNotification("🗑️ Job deleted successfully!", "info");
-    refreshUI();
-  }
-}
-
-function showNotification(message, type) {
-  const toast = document.createElement("div");
-  toast.className = `toast ${type}`;
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
-}
-
-function refreshUI() {
-  updateDashboard();
-  renderJobsTable();
-  renderGanttChart();
-}
-
-const searchInput = document.getElementById("searchInput");
-const clearBtn = document.getElementById("clearSearch");
-
-searchInput.addEventListener("input", function (e) {
-  clearTimeout(searchTimeout);
-  const term = e.target.value.trim();
-
-  if (term.length > 0) {
-    clearBtn.style.display = "inline-block";
-  } else {
-    clearBtn.style.display = "none";
-  }
-
-  searchTimeout = setTimeout(() => {
-    if (term) {
-      const results = Store.search(term);
-      renderJobsTable(results);
-    } else {
-      renderJobsTable();
+  save.addEventListener("click", () => {
+    const result = validate(form);
+    if (!result.ok) {
+      errorBox.classList.remove("d-none");
+      errorBox.textContent = result.errs.join(" • ");
+      return;
     }
-  }, 300);
-});
+    errorBox.classList.add("d-none");
+    const payload = {
+      product: form.woProduct.value.trim(),
+      qty: parseInt(form.woQty.value, 10),
+      due: form.woDue.value,
+      priority: form.woPriority.value,
+      status: form.woStatus.value,
+    };
+    const id = document.getElementById("woId").value;
+    if (id) {
+      Store.update(id, payload);
+      toast("Order updated");
+    } else {
+      const o = Store.add(payload);
+      toast(`Order ${o.id} created`);
+    }
+    window.jQuery("#woModal").modal("hide");
+    renderTable();
+  });
 
-clearBtn.addEventListener("click", () => {
-  searchInput.value = "";
-  clearBtn.style.display = "none";
-  renderJobsTable();
-});
+  // Row actions (edit/delete/workflow)
+  tbody.addEventListener("click", (e) => {
+    const editId = e.target.closest("[data-edit]")?.dataset.edit;
+    const delId = e.target.closest("[data-del]")?.dataset.del;
+    const action = e.target.closest("[data-action]")?.dataset.action;
+    if (editId) {
+      const o = Store.get().orders.find((x) => x.id === editId);
+      document.getElementById("woModalTitle").textContent = `Edit ${o.id}`;
+      document.getElementById("woId").value = o.id;
+      document.getElementById("woProduct").value = o.product;
+      document.getElementById("woQty").value = o.qty;
+      document.getElementById("woDue").value = o.due;
+      document.getElementById("woPriority").value = o.priority;
+      document.getElementById("woStatus").value = o.status;
+      window.jQuery("#woModal").modal("show");
+    }
+    if (delId) {
+      if (confirm("Delete this order?")) {
+        Store.remove(delId);
+        toast("Order deleted", "error");
+        renderTable();
+      }
+    }
+    if (action) {
+      const [act, id] = action.split(":");
+      const map = {
+        start: "In Progress",
+        qc: "Quality Check",
+        complete: "Completed",
+        cancel: "Cancelled",
+      };
+      Store.update(id, { status: map[act] });
+      toast(`Order ${id} -> ${map[act]}`);
+      renderTable();
+    }
+  });
 
-document.getElementById("jobModal").addEventListener("click", function (e) {
-  if (e.target === this) closeModal();
-});
+  // Initial render
+  renderTable();
+}
 
-Store.init();
-refreshUI();
+// Kick off Work Orders after DOM ready (tie into existing DOMContentLoaded if needed)
+document.addEventListener("DOMContentLoaded", initWorkOrders);

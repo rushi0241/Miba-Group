@@ -1,0 +1,199 @@
+.brand-link {
+  display: flex;
+  align-items: center;
+}
+/* Minimal custom styles for the demo */
+.production-line {
+  width: 100%;
+  height: 260px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0));
+  border-radius: 6px;
+}
+svg {
+  width: 100%;
+  height: 100%;
+}
+.conveyor {
+  stroke: #4b7bec;
+  stroke-width: 8;
+  stroke-linecap: round;
+  fill: none;
+  stroke-dasharray: 10 10;
+  animation: dash 1.2s linear infinite;
+}
+@keyframes dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.station {
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.station:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+}
+.station .label {
+  font: 600 12px/1 "Segoe UI", Roboto, sans-serif;
+  fill: #334;
+}
+
+.item {
+  fill: #10ac84;
+  stroke: white;
+  stroke-width: 2;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+}
+.item.warning {
+  fill: #f39c12;
+}
+.item.danger {
+  fill: #e74c3c;
+}
+
+.timeline-controls input[type="range"] {
+  width: 100%;
+}
+
+/* Dark mode support */
+body.dark-mode .conveyor {
+  stroke: #70a1ff;
+}
+body.dark-mode .station .label {
+  fill: #dbe4ff;
+}
+
+/* Work Orders table helpers */
+.wo-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+.wo-Planned {
+  background: #d6e4ff;
+  color: #1d4ed8;
+}
+.wo-In Progress {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.wo-Quality Check {
+  background: #fff3cd;
+  color: #a16207;
+}
+.wo-Completed {
+  background: #dcfce7;
+  color: #166534;
+}
+.wo-Cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.toast-item {
+  background: #1f2937;
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toast-item.success {
+  background: #065f46;
+}
+.toast-item.error {
+  background: #7f1d1d;
+}
+.toast-item .close {
+  background: transparent;
+  border: none;
+  color: #fff;
+}
+
+/* Make production line and filter cards equal height */
+.row-stretch > [class*="col-"] {
+  display: flex;
+}
+.row-stretch > [class*="col-"] > .card {
+  width: 100%;
+}
+
+/* Work Orders table tidy layout */
+#woTable thead th {
+  white-space: nowrap;
+}
+#woTable .col-id {
+  width: 110px;
+}
+#woTable .col-qty {
+  width: 90px;
+}
+#woTable .col-due {
+  width: 140px;
+}
+#woTable .col-priority {
+  width: 120px;
+}
+#woTable .col-status {
+  width: 150px;
+}
+#woTable .col-actions {
+  width: 220px;
+}
+#woTable tbody td {
+  vertical-align: middle;
+  font-size: 14px;
+}
+#woTable tbody td.text-center {
+  text-align: center;
+}
+#woTable tbody td.text-right {
+  text-align: right;
+}
+.thead-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Align and space action buttons */
+#woTable td.actions {
+  white-space: nowrap;
+}
+#woTable td .actions-wrap {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+#woTable td .actions-wrap .btn {
+  min-width: 32px;
+}
+
+/* Stronger status colors for clarity */
+.wo-Planned {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+.wo-In Progress {
+  background: #cffafe;
+  color: #155e75;
+}
+.wo-Quality Check {
+  background: #fde68a;
+  color: #92400e;
+}
+.wo-Completed {
+  background: #bbf7d0;
+  color: #065f46;
+}
+.wo-Cancelled {
+  background: #fecaca;
+  color: #7f1d1d;
+}
