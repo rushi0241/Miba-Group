@@ -1,4 +1,3 @@
-// Simple data model for stations and simulated events
 const stationsData = [
   {
     id: "S1",
@@ -47,11 +46,11 @@ const stationsData = [
   },
 ];
 
-let items = []; // moving WIP items
+let items = [];
 let playing = true;
 let speed = 1;
-let timePct = 0; // 0..100 replay timeline
-const lineWidth = 820; // px within SVG path for items
+let timePct = 0;
+const lineWidth = 820;
 
 function $(sel) {
   return document.querySelector(sel);
@@ -61,7 +60,6 @@ function $all(sel) {
 }
 
 function init() {
-  // Populate stations SVG
   const g = document.getElementById("stations");
   stationsData.forEach((s, idx) => {
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -89,7 +87,6 @@ function init() {
     g.appendChild(group);
   });
 
-  // Select options
   const select = document.getElementById("stationSelect");
   select.innerHTML = stationsData
     .map((s) => `<option value="${s.id}">${s.id} - ${s.name}</option>`)
@@ -99,7 +96,6 @@ function init() {
     if (s) openStation(s);
   });
 
-  // Search
   document.getElementById("searchStation").addEventListener("input", (e) => {
     const q = e.target.value.toLowerCase();
     $all("#stations .station").forEach((node) => {
@@ -111,7 +107,6 @@ function init() {
     });
   });
 
-  // Timeline & controls
   document
     .getElementById("btnPlay")
     .addEventListener("click", () => (playing = true));
@@ -131,24 +126,20 @@ function init() {
     playing = false;
   });
 
-  // Filters
   ["Running", "Starved", "Down"].forEach((name) => {
     document
       .getElementById("filter" + name)
       .addEventListener("change", updateFilters);
   });
 
-  // Theme toggle
   document
     .getElementById("toggleTheme")
     .addEventListener("click", () =>
       document.body.classList.toggle("dark-mode")
     );
 
-  // Seed items
   for (let i = 0; i < 8; i++) items.push({ pos: (i * 0.12) % 1, state: "ok" });
 
-  // Default: load first station details
   if (stationsData.length) {
     openStation(stationsData[0]);
     select.value = stationsData[0].id;
@@ -196,7 +187,7 @@ function updateKPIs() {
 function renderItems(dt) {
   const itemsGroup = document.getElementById("items");
   itemsGroup.innerHTML = "";
-  // Move items when playing
+
   if (playing) {
     timePct = Math.min(100, timePct + dt * 0.6 * speed);
     document.getElementById("timeline").value = Math.floor(timePct);
@@ -223,13 +214,12 @@ function renderItems(dt) {
 }
 
 function renderStationStates() {
-  // Randomly change states to simulate line
   if (Math.random() < 0.01) {
     const s = stationsData[Math.floor(Math.random() * stationsData.length)];
     const all = ["running", "starved", "down"];
     s.status = all[Math.floor(Math.random() * all.length)];
   }
-  // Update colors
+
   $all("#stations .station").forEach((node) => {
     const s = stationsData.find((x) => x.id === node.dataset.id);
     const rect = node.querySelector("rect");
@@ -286,7 +276,6 @@ function tick(ts) {
 
 document.addEventListener("DOMContentLoaded", init);
 
-// -------------------- Work Orders Module (CRUD + Store + Workflow) --------------------
 const Store = (() => {
   const state = {
     orders: [
@@ -370,7 +359,6 @@ function dateAdd(days) {
   return d.toISOString().slice(0, 10);
 }
 
-// UI Helpers
 function toast(message, type = "success") {
   const wrap = document.getElementById("toastContainer");
   const el = document.createElement("div");
@@ -393,7 +381,6 @@ function badge(status) {
   )}">${status}</span>`;
 }
 
-// Render table
 function renderTable() {
   const tbody = document.getElementById("woTbody");
   if (!tbody) return;
@@ -441,7 +428,6 @@ function renderTable() {
 }
 
 function workflowMenuItems(o) {
-  // Simple workflow: Planned -> In Progress -> Quality Check -> Completed
   const items = [];
   if (o.status === "Planned")
     items.push(
@@ -462,7 +448,6 @@ function workflowMenuItems(o) {
   return items.join("");
 }
 
-// Validation
 function validate(form) {
   const errs = [];
   const product = form.woProduct.value.trim();
@@ -474,7 +459,6 @@ function validate(form) {
   return { ok: errs.length === 0, errs };
 }
 
-// Event wiring
 function initWorkOrders() {
   const statusSel = document.getElementById("woStatusFilter");
   const search = document.getElementById("woSearch");
@@ -484,9 +468,8 @@ function initWorkOrders() {
   const save = document.getElementById("woSave");
   const errorBox = document.getElementById("woError");
 
-  if (!statusSel) return; // section not present
+  if (!statusSel) return;
 
-  // Debounced search
   let t;
   const applySearch = () => {
     Store.setFilter({ q: search.value });
@@ -535,7 +518,6 @@ function initWorkOrders() {
     renderTable();
   });
 
-  // Row actions (edit/delete/workflow)
   tbody.addEventListener("click", (e) => {
     const editId = e.target.closest("[data-edit]")?.dataset.edit;
     const delId = e.target.closest("[data-del]")?.dataset.del;
@@ -572,9 +554,7 @@ function initWorkOrders() {
     }
   });
 
-  // Initial render
   renderTable();
 }
 
-// Kick off Work Orders after DOM ready (tie into existing DOMContentLoaded if needed)
 document.addEventListener("DOMContentLoaded", initWorkOrders);
